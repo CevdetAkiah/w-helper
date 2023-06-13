@@ -8,6 +8,7 @@ import (
 	"log"
 	"math/rand"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -22,7 +23,7 @@ func main() {
 func ui(reader io.Reader, wordSlice [][]byte, input chan string) {
 	quit := false
 	// word := wordSlice[randIndex(len(wordSlice))]
-	word := []byte{98, 108, 111, 110, 100}
+	word := []byte{122, 105, 110, 99, 121}
 	index := 0
 	letterMap := make(map[int]byte)
 	tell("Type 'q' to quit")
@@ -44,8 +45,8 @@ func ui(reader io.Reader, wordSlice [][]byte, input chan string) {
 			tell("Did you score any green hits?")
 			continue
 		case "y":
-			tell("new commands: v for yes, x for no")
-			testWord(string(word), wordSlice, index)
+			tell("new commands: v for yes, x for no, z to test a new word in the same index followed by how many times this has failed eg 'z 2'")
+			testWord(string(word), wordSlice, index, []string{}, letterMap)
 		case "v":
 			// record the letter and index
 			letterMap[index] = word[index]
@@ -54,22 +55,28 @@ func ui(reader io.Reader, wordSlice [][]byte, input chan string) {
 				fmt.Printf("Letter: %s  -  stored at index: %d\n", string(v), i+1)
 			}
 			// search for the next hit
-			tell("Type p to search for the next letter")
 			wordSlice = newWordSlice(index, wordSlice, letterMap)
+			word = wordSlice[randIndex(len(wordSlice))]
+			tell("new word: ", string(word))
+			index++
 
-			for _, v := range wordSlice {
-				fmt.Println(string(v))
-			}
+			// for _, v := range wordSlice {
+			// 	fmt.Println(string(v))
+			// }
 
 		case "x":
 			index++
-			testWord(string(word), wordSlice, index)
+
+			testWord(string(word), wordSlice, index, []string{}, letterMap)
+		case "z":
+			testWord(string(word), wordSlice, index, cmd, letterMap)
+
 		}
+
 	}
 }
 
 func newWordSlice(index int, wordSlice [][]byte, letterMap map[int]byte) [][]byte {
-	fmt.Println(string(letterMap[index]))
 	validCount := 0
 
 	for _, v := range wordSlice {
@@ -83,22 +90,42 @@ func newWordSlice(index int, wordSlice [][]byte, letterMap map[int]byte) [][]byt
 	return wordSlice
 }
 
-func testWord(word string, wordSlice [][]byte, index int) {
+func testWord(word string, wordSlice [][]byte, index int, cmd []string, letterMap map[int]byte) {
 	test := ""
 	i := index
-	fmt.Println(i)
+
+	foundLetters := len(letterMap)
+	var skipCount int
+	var err error
+	if len(cmd) != 0 && len(cmd) >= 2 {
+		skipCount, err = strconv.Atoi(cmd[1]) // cyle past the words we have already used
+		if err != nil {
+			fmt.Println("Please type fail count as an integer, error: ", err)
+		}
+	}
+
 	if i >= 5 {
 		return
 	}
+
 	for _, v := range wordSlice {
 		if word[i] == v[i] {
 			match := true
+			if skipCount > 0 {
+				skipCount--
+				match = false
+			}
 			for j := 0; j < 5; j++ {
 				if j == i {
 					j++
 				} else if word[j] == v[j] {
-					match = false
-					break
+					if foundLetters > 0 {
+						foundLetters--
+						continue
+					} else {
+						match = false
+						break
+					}
 				}
 			}
 			if match {
@@ -107,6 +134,13 @@ func testWord(word string, wordSlice [][]byte, index int) {
 			}
 		}
 	}
+	// if len(string(test)) == 0 {
+	// 	for _, v := range wordSlice {
+	// 		if v[i] == word[i] {
+	// 			fmt.Println(string(v))
+	// 		}
+	// 	}
+	// }
 	tell("Any green hits? ", string(test))
 }
 
